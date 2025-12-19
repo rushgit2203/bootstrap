@@ -1,50 +1,65 @@
-pipeline{
+pipeline {
     agent any
-    stages{
-        stage('git checkout') {
+
+    environment {
+        DOCKER_IMAGE = 'rushikeshborekar/freelancerimage:latest'
+    }
+
+    stages {
+        stage('Checkout') {
             steps {
-                git url: "https://github.com/shamashaik19/bootstrap.git"
+                echo 'Cloning source code...'
+                git branch: 'master', url: 'https://github.com/rushgit2203/bootstrap.git/'
             }
         }
-        stage('compile project') {
+
+        stage('Build') {
             steps {
-                sh "mvn compile"
+                echo 'Compiling project...'
+                sh 'mvn compile'
             }
         }
-        stage('test project') {
+
+        stage('Test') {
             steps {
-                sh "mvn test"
+                echo 'Running tests...'
+                sh 'mvn test'
             }
         }
-        stage('package'){
+
+        stage('Package') {
             steps {
-                sh "mvn package"
+                echo 'Packaging JAR file...'
+                sh 'mvn package'
             }
         }
-        stage('docker build') {
+
+        stage('Docker Build') {
             steps {
-                echo 'Creating Docker image...'
-                sh "docker build -t shamashaik19/freelancerimage:latest ."
+                echo 'Building Docker image...'
+                sh 'docker build -t $DOCKER_IMAGE .'
             }
         }
+
         stage('Push to DockerHub') {
             steps {
-                echo 'Pushing the Docker image to DockerHub...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                    sh "docker push shamashaik19/freelancerimage:latest"
+                echo 'Pushing Docker image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $DOCKER_IMAGE
+                    '''
                 }
             }
         }
-      stage('Run Container') {
-            steps {
-                echo 'Running Docker container on server...'
-                sh """
-                    docker stop freelancer_container || true
-                    docker rm freelancer_container || true
-                    docker run -d --name freelancer_container -p 80:80 shamashaik19/freelancerimage:latest
-                """
-            }
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline executed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed!'
         }
     }
 }
