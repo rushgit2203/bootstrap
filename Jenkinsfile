@@ -1,3 +1,5 @@
+@Library('my-shared-lib') _
+
 pipeline {
     agent any
 
@@ -8,46 +10,41 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo 'Cloning source code...'
-                git branch: 'master', url: 'https://github.com/rushgit2203/bootstrap.git/'
+                git branch: 'master', url: 'https://github.com/rushgit2203/bootstrap.git'
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Compiling project...'
+                echo ' Compiling project...'
                 sh 'mvn compile'
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Running tests...'
-                sh 'mvn test'
+                runTests()    
             }
         }
 
         stage('Package') {
             steps {
-                echo 'Packaging JAR file...'
                 sh 'mvn package'
             }
         }
 
         stage('Docker Build') {
             steps {
-                echo 'Building Docker image...'
-                sh 'docker build -t $DOCKER_IMAGE .'
+                dockerBuild("${DOCKER_IMAGE}")   
             }
         }
 
         stage('Push to DockerHub') {
             steps {
-                echo 'Pushing Docker image to Docker Hub...'
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $DOCKER_IMAGE
+                        docker push ${DOCKER_IMAGE}
                     '''
                 }
             }
@@ -56,10 +53,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Pipeline executed successfully!'
+            echo ' Build and push completed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed!'
+            echo ' Pipeline failed!'
         }
     }
 }
